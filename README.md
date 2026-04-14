@@ -9,24 +9,42 @@ Instead of maintaining a separate shortcuts list, cheatbind reads your actual co
 - **niri** — parses `~/.config/niri/config.kdl`
 - More compositors planned (Hyprland, Sway)
 
-## Dependencies
-
-- Python 3.11+
-- GTK4 + PyGObject
-- gtk4-layer-shell
-
-### Arch Linux
-
-```bash
-sudo pacman -S python-gobject gtk4 gtk4-layer-shell
-```
-
 ## Install
 
+### Arch Linux (AUR)
+
 ```bash
-pip install .
-# or for development:
-pip install -e .
+yay -S cheatbind
+```
+
+This installs cheatbind and all dependencies (GTK4, gtk4-layer-shell, PyGObject).
+
+### PyPI
+
+```bash
+pipx install cheatbind
+```
+
+System dependencies must be installed separately:
+
+```bash
+# Arch Linux
+sudo pacman -S python-gobject gtk4 gtk4-layer-shell
+
+# Fedora
+sudo dnf install python3-gobject gtk4 gtk4-layer-shell
+
+# Ubuntu/Debian (24.04+)
+sudo apt install python3-gi gir1.2-gtk-4.0 libgtk4-layer-shell-dev
+```
+
+### From source
+
+```bash
+git clone https://github.com/Xhelliom/cheatbind.git
+cd cheatbind
+python3 -m venv .venv && .venv/bin/pip install -e .
+.venv/bin/cheatbind
 ```
 
 ## Usage
