@@ -4,7 +4,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
-from gi.repository import Gdk, Gtk, Gtk4LayerShell
+from gi.repository import Gdk, GLib, Gtk, Gtk4LayerShell
 
 from ..parsers.base import Column
 from .keybinds import KeybindsGrid
@@ -15,8 +15,9 @@ class OverlayWindow(Gtk.Window):
 
     def __init__(self, app: Gtk.Application, columns: list[Column]):
         super().__init__(application=app)
+        self._columns = columns
         self._setup_layer_shell()
-        self._build_ui(columns)
+        self._setup_placeholder()
         self._setup_input()
 
     def _setup_layer_shell(self):
@@ -25,7 +26,6 @@ class OverlayWindow(Gtk.Window):
         Gtk4LayerShell.set_keyboard_mode(
             self, Gtk4LayerShell.KeyboardMode.EXCLUSIVE
         )
-        # Anchor to all edges = full screen
         for edge in (
             Gtk4LayerShell.Edge.TOP,
             Gtk4LayerShell.Edge.BOTTOM,
@@ -35,15 +35,26 @@ class OverlayWindow(Gtk.Window):
             Gtk4LayerShell.set_anchor(self, edge, True)
         Gtk4LayerShell.set_namespace(self, "cheatbind")
 
-    def _build_ui(self, columns: list[Column]):
+    def _setup_placeholder(self):
+        """Show an empty overlay immediately, populate content on next frame."""
         self.add_css_class("overlay")
+        self._container = Gtk.Box()
+        self._container.set_hexpand(True)
+        self._container.set_vexpand(True)
+        self.set_child(self._container)
 
+        # Defer heavy widget creation to after the window is mapped
+        self.connect("map", self._on_mapped)
+
+    def _on_mapped(self, _widget):
+        GLib.idle_add(self._build_ui)
+
+    def _build_ui(self):
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_hexpand(True)
         scroll.set_vexpand(True)
 
-        # Title
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         vbox.set_margin_top(40)
         vbox.set_margin_bottom(40)
@@ -60,19 +71,20 @@ class OverlayWindow(Gtk.Window):
         subtitle.add_css_class("overlay-subtitle")
         vbox.append(subtitle)
 
-        grid = KeybindsGrid(columns)
+        grid = KeybindsGrid(self._columns)
         vbox.append(grid)
 
         scroll.set_child(vbox)
         self.set_child(scroll)
 
+        self._columns = None
+        return GLib.SOURCE_REMOVE
+
     def _setup_input(self):
-        # Close on Escape
         key_ctrl = Gtk.EventControllerKey()
         key_ctrl.connect("key-pressed", self._on_key)
         self.add_controller(key_ctrl)
 
-        # Close on click
         click_ctrl = Gtk.GestureClick()
         click_ctrl.connect("pressed", self._on_click)
         self.add_controller(click_ctrl)

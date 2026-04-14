@@ -60,6 +60,9 @@ def _init_gtk():
     """Lazy-load GTK4 and layer-shell. Called only when showing the overlay."""
     import ctypes
 
+    # Use cairo renderer — avoids ~3s shader compilation on first present()
+    os.environ.setdefault("GSK_RENDERER", "cairo")
+
     layer_shell_lib = "/usr/lib/libgtk4-layer-shell.so"
     if os.path.exists(layer_shell_lib):
         ctypes.cdll.LoadLibrary(layer_shell_lib)
@@ -130,7 +133,7 @@ def _create_app(Gdk, Gio, Gtk, OverlayWindow, columns, css_path):
         def __init__(self):
             super().__init__(
                 application_id="io.github.xhelliom.cheatbind",
-                flags=Gio.ApplicationFlags.FLAGS_NONE,
+                flags=Gio.ApplicationFlags.NON_UNIQUE,
             )
 
         def do_activate(self):
