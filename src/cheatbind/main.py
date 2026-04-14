@@ -8,6 +8,9 @@ import sys
 from pathlib import Path
 
 _APP_NAME = "cheatbind"
+_USER_CSS = Path(
+    os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")
+) / "cheatbind" / "style.css"
 
 
 def _get_pidfile() -> Path:
@@ -60,7 +63,6 @@ def _init_gtk():
     """Lazy-load GTK4 and layer-shell. Called only when showing the overlay."""
     import ctypes
 
-    # Use cairo renderer — avoids ~3s shader compilation on first present()
     os.environ.setdefault("GSK_RENDERER", "cairo")
 
     layer_shell_lib = "/usr/lib/libgtk4-layer-shell.so"
@@ -77,11 +79,12 @@ def _init_gtk():
     return Gdk, Gio, Gtk
 
 
-def _resolve_config_path(args: argparse.Namespace):
-    """Resolve and validate the config file path."""
+def _resolve_config(args: argparse.Namespace):
+    """Resolve parser, config path, and compositor name."""
     from .config import get_parser
 
-    parser, config_path = get_parser(args.compositor)
+    compositor = args.compositor
+    parser, config_path = get_parser(compositor)
     if args.config:
         config_path = Path(args.config).resolve()
 
@@ -89,14 +92,46 @@ def _resolve_config_path(args: argparse.Namespace):
         print(f"Config file not found: {config_path}", file=sys.stderr)
         sys.exit(1)
 
-    return parser, config_path
+    # Detect compositor name for display
+    if compositor is None:
+        from .config import detect_compositor
+        compositor = detect_compositor() or "Unknown"
+
+    return parser, config_path, compositor
+
+
+def _print_dry_run(columns, compositor):
+    """Print parsed keybindings to stdout."""
+    print(f"Compositor: {compositor}\n")
+    for i, col in enumerate(columns):
+        for sec in col.sections:
+            print(f"── {sec.title} ──")
+            for bind in sec.binds:
+                keys = " + ".join(bind.keys)
+                if bind.alt_keys:
+                    alts = " / ".join(
+                        " + ".join(a) for a in bind.alt_keys
+                    )
+                    keys = f"{keys} / {alts}"
+                print(f"  {keys:40s} {bind.description}")
+            print()
 
 
 def _toggle_or_run(args: argparse.Namespace):
     """If already running, kill the existing instance. Otherwise, start."""
+    parser, config_path, compositor = _resolve_config(args)
+    columns = parser.parse(config_path)
+
+    if not columns:
+        print("No keybindings found.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.dry_run:
+        _print_dry_run(columns, compositor)
+        return
+
     pidfile = _get_pidfile()
 
-    # Fast path: toggle off existing instance without loading GTK
     existing = _read_pid(pidfile)
     if existing is not None:
         os.kill(existing, signal.SIGTERM)
@@ -105,28 +140,24 @@ def _toggle_or_run(args: argparse.Namespace):
     lock_fd = _acquire_lock(pidfile)
 
     try:
-        # Parse config before loading GTK (faster feedback on errors)
-        parser, config_path = _resolve_config_path(args)
-        columns = parser.parse(config_path)
-
-        if not columns:
-            print("No keybindings found.", file=sys.stderr)
-            sys.exit(1)
-
-        # Now load GTK and show overlay
         Gdk, Gio, Gtk = _init_gtk()
         from .ui.overlay import OverlayWindow
 
         css_path = Path(__file__).parent / "style" / "cheatsheet.css"
 
-        app = _create_app(Gdk, Gio, Gtk, OverlayWindow, columns, css_path)
+        app = _create_app(
+            Gdk, Gio, Gtk, OverlayWindow,
+            columns, css_path, compositor,
+        )
         app.run([])
     finally:
         lock_fd.close()
         pidfile.unlink(missing_ok=True)
 
 
-def _create_app(Gdk, Gio, Gtk, OverlayWindow, columns, css_path):
+def _create_app(
+    Gdk, Gio, Gtk, OverlayWindow, columns, css_path, compositor
+):
     """Create the GTK application."""
 
     class CheatbindApp(Gtk.Application):
@@ -137,15 +168,26 @@ def _create_app(Gdk, Gio, Gtk, OverlayWindow, columns, css_path):
             )
 
         def do_activate(self):
+            # Load default CSS
+            display = Gdk.Display.get_default()
             if css_path.exists():
                 provider = Gtk.CssProvider()
                 provider.load_from_path(str(css_path))
                 Gtk.StyleContext.add_provider_for_display(
-                    Gdk.Display.get_default(),
-                    provider,
+                    display, provider,
                     Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
                 )
-            win = OverlayWindow(self, columns)
+
+            # Load user CSS override
+            if _USER_CSS.exists():
+                user_provider = Gtk.CssProvider()
+                user_provider.load_from_path(str(_USER_CSS))
+                Gtk.StyleContext.add_provider_for_display(
+                    display, user_provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_USER,
+                )
+
+            win = OverlayWindow(self, columns, compositor)
             win.present()
 
     return CheatbindApp()
@@ -164,6 +206,11 @@ def main():
     arg_parser.add_argument(
         "--config",
         help="Path to compositor config file",
+    )
+    arg_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print parsed keybindings to stdout instead of showing overlay",
     )
     args = arg_parser.parse_args()
 

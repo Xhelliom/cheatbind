@@ -15,6 +15,8 @@ class SectionWidget(Gtk.Box):
     def __init__(self, section: Section):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.add_css_class("section")
+        self.section = section
+        self.bind_rows: list[Gtk.Widget] = []
 
         title = Gtk.Label(label=section.title)
         title.add_css_class("section-title")
@@ -25,9 +27,20 @@ class SectionWidget(Gtk.Box):
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
             row.add_css_class("bind-row")
 
-            combo = KeyCombo(bind.keys)
-            combo.set_halign(Gtk.Align.START)
-            row.append(combo)
+            combos_box = Gtk.Box(
+                orientation=Gtk.Orientation.HORIZONTAL, spacing=6
+            )
+            combos_box.add_css_class("key-combos")
+            combos_box.set_halign(Gtk.Align.START)
+
+            combos_box.append(KeyCombo(bind.keys))
+            for alt in bind.alt_keys:
+                sep = Gtk.Label(label="/")
+                sep.add_css_class("key-alt-separator")
+                combos_box.append(sep)
+                combos_box.append(KeyCombo(alt))
+
+            row.append(combos_box)
 
             desc = Gtk.Label(label=bind.description)
             desc.add_css_class("bind-description")
@@ -36,6 +49,7 @@ class SectionWidget(Gtk.Box):
             row.append(desc)
 
             self.append(row)
+            self.bind_rows.append(row)
 
 
 class ColumnWidget(Gtk.Box):

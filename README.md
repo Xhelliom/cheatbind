@@ -4,6 +4,20 @@ A Wayland overlay that parses your compositor config and displays a styled keybo
 
 Instead of maintaining a separate shortcuts list, cheatbind reads your actual config file and renders an overlay with categorized keybindings, 3D keyboard-style key pills, and a multi-column layout.
 
+![cheatbind screenshot](assets/screenshot.png)
+
+## Features
+
+- Auto-parses compositor config — no manual keybinding list to maintain
+- Auto-categorizes binds by action type (Applications, Navigation, Workspaces, etc.)
+- 3D keyboard-style key pills with multi-column layout
+- Live search — type to filter keybindings in real-time
+- Merges duplicate keybindings (same action, different keys)
+- Toggle behavior — run again to dismiss
+- Custom CSS themes via `~/.config/cheatbind/style.css`
+- Fade-in animation
+- `--dry-run` mode to preview parsed keybindings in terminal
+
 ## Supported compositors
 
 - **niri** — parses `~/.config/niri/config.kdl`
@@ -58,11 +72,14 @@ cheatbind --compositor niri
 
 # Use a custom config path
 cheatbind --config ~/my-niri-config.kdl
+
+# Preview parsed keybindings in terminal
+cheatbind --dry-run
 ```
 
 Running `cheatbind` while it's already showing will close the overlay (toggle behavior via PID file).
 
-Press **Escape** or click anywhere to dismiss.
+Press **Escape** or click anywhere to dismiss. Type to search/filter keybindings live.
 
 ### niri keybinding example
 
@@ -94,6 +111,22 @@ binds {
 - `// [hidden]` — exclude a bind from the overlay
 - `hotkey-overlay-title=null` — also excludes a bind
 - Without markers, cheatbind auto-categorizes binds by action type
+
+## Custom theme
+
+Override the default style by creating `~/.config/cheatbind/style.css`. It is loaded on top of the built-in CSS, so you only need to override what you want to change:
+
+```css
+/* Example: different background and accent color */
+.overlay { background-color: rgba(20, 20, 40, 0.9); }
+.section-title { color: #ff9f43; }
+```
+
+### NixOS
+
+```bash
+nix run github:Xhelliom/cheatbind
+```
 
 ## License
 

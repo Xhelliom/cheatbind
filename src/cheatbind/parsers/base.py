@@ -7,11 +7,12 @@ from pathlib import Path
 
 @dataclass
 class Keybind:
-    """A single keybinding with its keys and description."""
+    """A keybinding with one or more key combos and a description."""
 
     keys: list[str]  # e.g. ["Mod", "Shift", "Left"]
     description: str
     action: str = ""
+    alt_keys: list[list[str]] = field(default_factory=list)  # alternative combos
 
 
 @dataclass

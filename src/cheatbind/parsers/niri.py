@@ -58,6 +58,7 @@ class NiriParser(Parser):
         in_binds = False
         brace_depth = 0
         has_markers = False
+        skip_next = False
         columns: list[Column] = [Column()]
         current_section = Section(title="Général")
         columns[0].sections.append(current_section)
@@ -92,10 +93,14 @@ class NiriParser(Parser):
                     continue
 
                 if self._HIDDEN_RE.search(line):
+                    skip_next = True
                     continue
 
                 m_bind = self._BIND_RE.match(line)
                 if m_bind:
+                    if skip_next:
+                        skip_next = False
+                        continue
                     props = m_bind.group("props")
                     if self._NULL_TITLE_RE.search(props):
                         continue
@@ -120,11 +125,28 @@ class NiriParser(Parser):
         if has_markers:
             for col in columns:
                 col.sections = [s for s in col.sections if s.binds]
+                for section in col.sections:
+                    section.binds = self._merge_duplicates(section.binds)
             columns = [c for c in columns if c.sections]
             return columns
 
         # No markers — auto-categorize by action
+        if not flat_binds:
+            return []
         return self._auto_categorize(flat_binds)
+
+    @staticmethod
+    def _merge_duplicates(binds: list[Keybind]) -> list[Keybind]:
+        """Merge binds with the same action into a single entry."""
+        seen: dict[str, Keybind] = {}
+        merged: list[Keybind] = []
+        for bind in binds:
+            if bind.action in seen:
+                seen[bind.action].alt_keys.append(bind.keys)
+            else:
+                seen[bind.action] = bind
+                merged.append(bind)
+        return merged
 
     def _auto_categorize(self, binds: list[Keybind]) -> list[Column]:
         """Group binds into sections by action pattern, then distribute into columns."""
@@ -151,6 +173,10 @@ class NiriParser(Parser):
         ]
         if uncategorized.binds:
             ordered.append(uncategorized)
+
+        # Merge duplicate actions within each section
+        for section in ordered:
+            section.binds = self._merge_duplicates(section.binds)
 
         # Distribute into 3 columns, balanced by bind count
         target_cols = 3
