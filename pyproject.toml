@@ -32,3 +32,6 @@ Issues = "https://github.com/Xhelliom/cheatbind/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+cheatbind = ["style/*.css"]
