@@ -83,4 +83,4 @@ jobs:
           git config user.email "stephane@wetterwald.eu"
           git add PKGBUILD .SRCINFO
           git diff --cached --quiet || git commit -m "Update to ${VERSION}"
-          git push
+          git push origin master
