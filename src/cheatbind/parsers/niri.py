@@ -44,7 +44,14 @@ class NiriParser(Parser):
     _COLBREAK_RE = re.compile(r"^\s*//#!\s*$")
     _HIDDEN_RE = re.compile(r"//\s*\[hidden\]")
 
+    MAX_CONFIG_SIZE = 1_000_000  # 1 MB
+
     def parse(self, config_path: Path) -> list[Column]:
+        if config_path.stat().st_size > self.MAX_CONFIG_SIZE:
+            raise ValueError(
+                f"Config file too large ({config_path.stat().st_size} bytes, "
+                f"max {self.MAX_CONFIG_SIZE})"
+            )
         text = config_path.read_text()
         lines = text.splitlines()
 
