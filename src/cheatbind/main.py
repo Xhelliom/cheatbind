@@ -1,30 +1,13 @@
 """Cheatbind — Wayland keyboard shortcuts overlay."""
 
 import argparse
-import ctypes
 import fcntl
 import os
 import signal
 import sys
 from pathlib import Path
 
-# Preload gtk4-layer-shell before any GTK import to fix linker order
-_LAYER_SHELL_LIB = "/usr/lib/libgtk4-layer-shell.so"
-if os.path.exists(_LAYER_SHELL_LIB):
-    ctypes.cdll.LoadLibrary(_LAYER_SHELL_LIB)
-
-import gi
-
-gi.require_version("Gdk", "4.0")
-gi.require_version("Gtk", "4.0")
-gi.require_version("Gtk4LayerShell", "1.0")
-from gi.repository import Gdk, Gio, Gtk
-
-from .config import get_parser
-from .ui.overlay import OverlayWindow
-
 _APP_NAME = "cheatbind"
-CSS_PATH = Path(__file__).parent / "style" / "cheatsheet.css"
 
 
 def _get_pidfile() -> Path:
@@ -73,8 +56,28 @@ def _acquire_lock(pidfile: Path):
     return fd
 
 
-def _resolve_config_path(args: argparse.Namespace) -> Path:
+def _init_gtk():
+    """Lazy-load GTK4 and layer-shell. Called only when showing the overlay."""
+    import ctypes
+
+    layer_shell_lib = "/usr/lib/libgtk4-layer-shell.so"
+    if os.path.exists(layer_shell_lib):
+        ctypes.cdll.LoadLibrary(layer_shell_lib)
+
+    import gi
+
+    gi.require_version("Gdk", "4.0")
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Gtk4LayerShell", "1.0")
+    from gi.repository import Gdk, Gio, Gtk
+
+    return Gdk, Gio, Gtk
+
+
+def _resolve_config_path(args: argparse.Namespace):
     """Resolve and validate the config file path."""
+    from .config import get_parser
+
     parser, config_path = get_parser(args.compositor)
     if args.config:
         config_path = Path(args.config).resolve()
@@ -90,6 +93,7 @@ def _toggle_or_run(args: argparse.Namespace):
     """If already running, kill the existing instance. Otherwise, start."""
     pidfile = _get_pidfile()
 
+    # Fast path: toggle off existing instance without loading GTK
     existing = _read_pid(pidfile)
     if existing is not None:
         os.kill(existing, signal.SIGTERM)
@@ -98,6 +102,7 @@ def _toggle_or_run(args: argparse.Namespace):
     lock_fd = _acquire_lock(pidfile)
 
     try:
+        # Parse config before loading GTK (faster feedback on errors)
         parser, config_path = _resolve_config_path(args)
         columns = parser.parse(config_path)
 
@@ -105,33 +110,42 @@ def _toggle_or_run(args: argparse.Namespace):
             print("No keybindings found.", file=sys.stderr)
             sys.exit(1)
 
-        app = CheatbindApp(columns)
+        # Now load GTK and show overlay
+        Gdk, Gio, Gtk = _init_gtk()
+        from .ui.overlay import OverlayWindow
+
+        css_path = Path(__file__).parent / "style" / "cheatsheet.css"
+
+        app = _create_app(Gdk, Gio, Gtk, OverlayWindow, columns, css_path)
         app.run([])
     finally:
         lock_fd.close()
         pidfile.unlink(missing_ok=True)
 
 
-class CheatbindApp(Gtk.Application):
-    def __init__(self, columns):
-        super().__init__(
-            application_id="io.github.xhelliom.cheatbind",
-            flags=Gio.ApplicationFlags.FLAGS_NONE,
-        )
-        self._columns = columns
+def _create_app(Gdk, Gio, Gtk, OverlayWindow, columns, css_path):
+    """Create the GTK application."""
 
-    def do_activate(self):
-        if CSS_PATH.exists():
-            provider = Gtk.CssProvider()
-            provider.load_from_path(str(CSS_PATH))
-            Gtk.StyleContext.add_provider_for_display(
-                Gdk.Display.get_default(),
-                provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+    class CheatbindApp(Gtk.Application):
+        def __init__(self):
+            super().__init__(
+                application_id="io.github.xhelliom.cheatbind",
+                flags=Gio.ApplicationFlags.FLAGS_NONE,
             )
 
-        win = OverlayWindow(self, self._columns)
-        win.present()
+        def do_activate(self):
+            if css_path.exists():
+                provider = Gtk.CssProvider()
+                provider.load_from_path(str(css_path))
+                Gtk.StyleContext.add_provider_for_display(
+                    Gdk.Display.get_default(),
+                    provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+                )
+            win = OverlayWindow(self, columns)
+            win.present()
+
+    return CheatbindApp()
 
 
 def main():
