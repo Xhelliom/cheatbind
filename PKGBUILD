@@ -30,4 +30,8 @@ package() {
     cd "${pkgname}-${pkgver}"
     python -m installer --destdir="${pkgdir}" dist/*.whl
     install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+
+    # Precompile bytecode for faster first launch
+    python -m compileall -q "${pkgdir}/usr/lib/"
+    python -O -m compileall -q "${pkgdir}/usr/lib/"
 }
