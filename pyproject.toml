@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cheatbind"
-version = "0.1.1"
+version = "0.1.2"
 description = "Wayland keyboard shortcuts overlay — parses your compositor config and displays a styled cheatsheet"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
-    { name = "Stephane Wetterwald", email = "stephane@wetterwald.eu" },
+    { name = "Stephane Wetterwald", email = "stephane.wetterwald@gmail.com" },
 ]
 keywords = ["wayland", "keybindings", "overlay", "niri", "cheatsheet"]
 classifiers = [

@@ -78,7 +78,7 @@ jobs:
           cp /tmp/srcinfo-build/.SRCINFO .
 
           git config user.name "Stephane Wetterwald"
-          git config user.email "stephane@wetterwald.eu"
+          git config user.email "stephane.wetterwald@gmail.com"
           git add PKGBUILD .SRCINFO
           git diff --cached --quiet || git commit -m "Update to ${VERSION}"
           git push origin master
