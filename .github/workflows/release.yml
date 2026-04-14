@@ -56,28 +56,26 @@ jobs:
 
       - name: Clone AUR repo and update
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
           git clone ssh://aur@aur.archlinux.org/cheatbind.git /tmp/aur-cheatbind
           cp PKGBUILD /tmp/aur-cheatbind/
 
           cd /tmp/aur-cheatbind
-
-          # Update pkgver in PKGBUILD
-          VERSION="${{ steps.version.outputs.version }}"
           sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
           sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
 
-          # Update checksums
-          sudo pacman -Sy --noconfirm pacman-contrib 2>/dev/null || true
-          updpkgsums 2>/dev/null || true
-
-          # Generate .SRCINFO
-          docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c "
-            pacman -Sy --noconfirm base-devel
-            useradd -m builder
-            chown -R builder:builder /pkg
-            cd /pkg
+          # Generate .SRCINFO in a temp dir to avoid Docker permission issues on .git/
+          mkdir -p /tmp/srcinfo-build
+          cp PKGBUILD /tmp/srcinfo-build/
+          docker run --rm -v "/tmp/srcinfo-build:/pkg" archlinux:latest bash -c "
+            pacman -Sy --noconfirm base-devel &&
+            useradd -m builder &&
+            chown -R builder:builder /pkg &&
+            cd /pkg &&
             su builder -c 'makepkg --printsrcinfo > .SRCINFO'
           "
+          cp /tmp/srcinfo-build/.SRCINFO .
 
           git config user.name "Stephane Wetterwald"
           git config user.email "stephane@wetterwald.eu"
