@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cheatbind"
+version = "0.1.0"
+description = "Wayland keyboard shortcuts overlay — parses your compositor config and displays a styled cheatsheet"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Stephane Wetterwald", email = "stephane@wetterwald.eu" },
+]
+keywords = ["wayland", "keybindings", "overlay", "niri", "cheatsheet"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Wayland",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Desktop Environment",
+]
+dependencies = [
+    "PyGObject>=3.46",
+]
+
+[project.scripts]
+cheatbind = "cheatbind.main:main"
+
+[project.urls]
+Homepage = "https://github.com/Xhelliom/cheatbind"
+Issues = "https://github.com/Xhelliom/cheatbind/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
