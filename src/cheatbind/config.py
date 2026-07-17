@@ -3,8 +3,9 @@
 import os
 from pathlib import Path
 
-from .parsers.base import Parser
+from .parsers.base import Column, Parser
 from .parsers.niri import NiriParser
+from .parsers.zsh import ZshParser
 
 COMPOSITORS = {
     "niri": {
@@ -15,6 +16,8 @@ COMPOSITORS = {
         "env_hint": "NIRI_SOCKET",
     },
 }
+
+_ZSHRC = Path("~/.zshrc").expanduser()
 
 
 def detect_compositor() -> str | None:
@@ -56,3 +59,10 @@ def get_parser(compositor: str | None = None) -> tuple[Parser, Path]:
         f"Config file not found for {compositor}. "
         f"Looked in: {', '.join(str(p) for p in info['config_paths'])}"
     )
+
+
+def get_extra_columns() -> list[Column]:
+    """Parse additional shortcut sources beyond the compositor (shell config)."""
+    if not _ZSHRC.is_file():
+        return []
+    return ZshParser().parse(_ZSHRC)

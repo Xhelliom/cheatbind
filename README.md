@@ -112,6 +112,18 @@ binds {
 - `hotkey-overlay-title=null` — also excludes a bind
 - Without markers, cheatbind auto-categorizes binds by action type
 
+## Terminal (zsh) shortcuts
+
+If `~/.zshrc` exists, cheatbind also scans it for annotated shortcuts and
+adds them as a "Terminal (zsh)" section:
+
+```zsh
+# cheatbind: Ctrl+R Historique de commandes (fzf)
+source /usr/share/fzf/key-bindings.zsh
+```
+
+`# cheatbind: <keys> <description>` — one line per shortcut, keys joined with `+`.
+
 ## Custom theme
 
 Override the default style by creating `~/.config/cheatbind/style.css`. It is loaded on top of the built-in CSS, so you only need to override what you want to change:

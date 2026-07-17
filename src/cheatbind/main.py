@@ -119,8 +119,10 @@ def _print_dry_run(columns, compositor):
 
 def _toggle_or_run(args: argparse.Namespace):
     """If already running, kill the existing instance. Otherwise, start."""
+    from .config import get_extra_columns
+
     parser, config_path, compositor = _resolve_config(args)
-    columns = parser.parse(config_path)
+    columns = parser.parse(config_path) + get_extra_columns()
 
     if not columns:
         print("No keybindings found.", file=sys.stderr)
